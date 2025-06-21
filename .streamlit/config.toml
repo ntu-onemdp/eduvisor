@@ -1,0 +1,15 @@
+[client]
+showSidebarNavigation = false
+
+[server]
+enableCORS = true
+folderWatchBlacklist = ['']
+fileWatcherType = "none"
+
+[theme] 
+backgroundColor="#FFFFFF" 
+primaryColor="#1B62B7"
+
+
+
+
