@@ -1,6 +1,7 @@
 # Secrets
 secrets.toml
 service-account-key.json
+secrets/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
