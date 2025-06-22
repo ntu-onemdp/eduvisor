@@ -1,5 +1,6 @@
 from models.admin_model import AdminModel
 
+
 class AdminController:
     """Handles admin request operations."""
 

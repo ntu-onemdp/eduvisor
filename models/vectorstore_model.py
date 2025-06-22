@@ -14,7 +14,10 @@ import streamlit as st
 from PyPDF2 import PdfReader
 
 # Initialize Google Cloud credentials
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = st.secrets['GOOGLE_APPLICATION_CREDENTIALS']
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = st.secrets[
+    "GOOGLE_APPLICATION_CREDENTIALS"
+]
+
 
 class VectorStoreModel:
     BUCKET_NAME = "vtabucket"
@@ -45,15 +48,23 @@ class VectorStoreModel:
             client = storage.Client()
             bucket = client.bucket(self.BUCKET_NAME)
 
-            bucket.blob(index_blob_name).upload_from_file(io.BytesIO(faiss_index_buffer), content_type='application/octet-stream')
-            bucket.blob(metadata_blob_name).upload_from_file(metadata_buffer, content_type='application/octet-stream')
-            bucket.blob(mapping_blob_name).upload_from_file(mapping_buffer, content_type='application/octet-stream')
+            bucket.blob(index_blob_name).upload_from_file(
+                io.BytesIO(faiss_index_buffer), content_type="application/octet-stream"
+            )
+            bucket.blob(metadata_blob_name).upload_from_file(
+                metadata_buffer, content_type="application/octet-stream"
+            )
+            bucket.blob(mapping_blob_name).upload_from_file(
+                mapping_buffer, content_type="application/octet-stream"
+            )
 
             return response_handler(201, f"Chatbot updated for Course ID: {course_id}.")
         except Exception as e:
             return response_handler(500, "Failed to Save Vectorstore", str(e))
 
-    def generate_vectorstore_from_memory(self, pdfs, chunk_size=3000, chunk_overlap=100):
+    def generate_vectorstore_from_memory(
+        self, pdfs, chunk_size=3000, chunk_overlap=100
+    ):
         """
         Generates a FAISS vector store from in-memory PDFs.
 
@@ -70,25 +81,39 @@ class VectorStoreModel:
                     page_content = page.extract_text()
 
                     if len(page_content) > chunk_size:
-                        text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+                        text_splitter = RecursiveCharacterTextSplitter(
+                            chunk_size=chunk_size, chunk_overlap=chunk_overlap
+                        )
                         chunks = text_splitter.split_text(page_content)
 
                         for i, chunk in enumerate(chunks):
-                            doc = Document(page_content=chunk, metadata={"title": title, "page": page_number, "chunk": i + 1})
+                            doc = Document(
+                                page_content=chunk,
+                                metadata={
+                                    "title": title,
+                                    "page": page_number,
+                                    "chunk": i + 1,
+                                },
+                            )
                             courseinfo_docs.append(doc)
                     else:
-                        doc = Document(page_content=page_content, metadata={"title": title, "page": page_number, "chunk": 1})
+                        doc = Document(
+                            page_content=page_content,
+                            metadata={"title": title, "page": page_number, "chunk": 1},
+                        )
                         courseinfo_docs.append(doc)
 
             embeddings = OpenAIEmbeddings()
             vectorstore = FAISS.from_documents(courseinfo_docs, embeddings)
             st.cache_resource.clear()
 
-            return response_handler(200, "Vectorstore Generated Successfully", vectorstore)
-        
+            return response_handler(
+                200, "Vectorstore Generated Successfully", vectorstore
+            )
+
         except Exception as e:
             return response_handler(500, "Failed to Generate Vectorstore", str(e))
-    
+
 
 @st.cache_resource(ttl=3600)
 def load_vectorstore_from_gcs(course_id):
@@ -96,7 +121,9 @@ def load_vectorstore_from_gcs(course_id):
         bucket_name = "vtabucket"
         index_blob_name = f"vectorstore/{course_id}/index.faiss"
         metadata_blob_name = f"vectorstore/{course_id}/metadata.pkl"
-        mapping_blob_name = f"vectorstore/{course_id}/mapping.pkl"  # New blob for mapping
+        mapping_blob_name = (
+            f"vectorstore/{course_id}/mapping.pkl"  # New blob for mapping
+        )
 
         # Initialize GCS client
         client = storage.Client()
@@ -104,7 +131,9 @@ def load_vectorstore_from_gcs(course_id):
 
         # Download FAISS index
         faiss_index_buffer = bucket.blob(index_blob_name).download_as_bytes()
-        faiss_index = faiss.deserialize_index(np.frombuffer(faiss_index_buffer, dtype=np.uint8))
+        faiss_index = faiss.deserialize_index(
+            np.frombuffer(faiss_index_buffer, dtype=np.uint8)
+        )
 
         # Download metadata
         metadata_buffer = bucket.blob(metadata_blob_name).download_as_bytes()
@@ -116,10 +145,12 @@ def load_vectorstore_from_gcs(course_id):
 
         # Reconstruct the docstore
         from langchain_community.docstore.in_memory import InMemoryDocstore
+
         docstore = InMemoryDocstore(metadata)
 
         # Reconstruct the FAISS vectorstore
         from langchain_community.vectorstores import FAISS
+
         vectorstore = FAISS(
             embedding_function=OpenAIEmbeddings(),
             index=faiss_index,
@@ -128,6 +159,6 @@ def load_vectorstore_from_gcs(course_id):
         )
         return response_handler(200, "Vectorstore Loaded Successfully", vectorstore)
     except Exception as e:
-        print('load  vectorstore ')
+        print("load  vectorstore ")
         print(str(e))
         return response_handler(500, "Failed to Load Vectorstore", str(e))

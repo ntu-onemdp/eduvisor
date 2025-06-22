@@ -1,6 +1,6 @@
-
 from models.pdf_model import PDFModel
 from models.vectorstore_model import VectorStoreModel
+
 
 class CourseMaterialController:
     def __init__(self):
@@ -19,12 +19,14 @@ class CourseMaterialController:
     def upload_file(self, uploaded_file, course_id):
         """Upload a new file to GCS"""
         return self.pdf_model.upload_pdf_to_gcs(uploaded_file, course_id)
-    
-    def fetch_pdfs_in_memory(self,course_id): 
+
+    def fetch_pdfs_in_memory(self, course_id):
         return self.pdf_model.fetch_pdfs_from_gcs_in_memory(course_id)
-    
-    def generate_vectorstore(self,pdfs): 
+
+    def generate_vectorstore(self, pdfs):
         return self.vectorstore_model.generate_vectorstore_from_memory(pdfs)
-    
-    def save_vectorstore(self,vectorstore, course_id): 
-        return self.vectorstore_model.save_vectorstore_to_gcs_direct(vectorstore, course_id)
+
+    def save_vectorstore(self, vectorstore, course_id):
+        return self.vectorstore_model.save_vectorstore_to_gcs_direct(
+            vectorstore, course_id
+        )

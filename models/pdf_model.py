@@ -6,7 +6,10 @@ from response import response_handler
 from io import BytesIO
 
 # Initialize Google Cloud credentials
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = st.secrets['GOOGLE_APPLICATION_CREDENTIALS']
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = st.secrets[
+    "GOOGLE_APPLICATION_CREDENTIALS"
+]
+
 
 class PDFModel:
     BUCKET_NAME = "vtabucket"
@@ -28,9 +31,11 @@ class PDFModel:
             blob = bucket.blob(blob_name)
 
             blob.upload_from_file(uploaded_file, content_type="application/pdf")
-            return response_handler(201, f"Uploaded {file_name} successfully.", file_name)
+            return response_handler(
+                201, f"Uploaded {file_name} successfully.", file_name
+            )
         except Exception as e:
-            print('upload pdf')
+            print("upload pdf")
             print(str(e))
             return response_handler(500, "Failed to Upload PDF", str(e))
 
@@ -58,10 +63,10 @@ class PDFModel:
                 blob.download_to_file(file_content)
                 file_content.seek(0)
                 files.append((file_name, file_content))
-    
+
             return response_handler(200, "PDFs Fetched Successfully", files)
         except Exception as e:
-            print('fetch')
+            print("fetch")
             print(str(e))
             return response_handler(500, "Failed to Fetch PDFs", str(e))
 
@@ -114,7 +119,11 @@ class PDFModel:
             blob = bucket.blob(blob_name)
 
             if not blob.exists():
-                return response_handler(404, "File Not Found", f"File '{filename}' does not exist in course '{course_id}'.")
+                return response_handler(
+                    404,
+                    "File Not Found",
+                    f"File '{filename}' does not exist in course '{course_id}'.",
+                )
 
             blob.delete()
             return response_handler(200, "File Deleted Successfully", filename)

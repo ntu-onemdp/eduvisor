@@ -1,6 +1,4 @@
-
-
-import streamlit as st 
+import streamlit as st
 from helpers import *
 from controllers.auth_controller import AuthController
 
@@ -15,5 +13,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-

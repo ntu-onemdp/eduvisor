@@ -2,13 +2,13 @@ import streamlit as st
 from models.courses_model import CoursesModel
 from models.enrolments_model import EnrolmentsModel
 
+
 class CoursesController:
     """Handles logic for displaying courses"""
 
     def __init__(self):
         self.course_model = CoursesModel()
         self.enrollment_model = EnrolmentsModel()
-
 
     def get_courses(self):
         """Retrieves all available courses from the database."""
@@ -18,7 +18,6 @@ class CoursesController:
         else:
             st.error("No courses available.")
             return []
-
 
     def get_student_enrollments(self, user_email):
         """Retrieves courses a student is enrolled in."""

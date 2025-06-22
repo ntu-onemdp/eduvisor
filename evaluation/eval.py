@@ -1,4 +1,3 @@
-
 from models.vectorstore_model import *
 from services.chat_service import ChatService
 import pandas as pd
@@ -6,25 +5,29 @@ import csv
 from langchain_core.messages import HumanMessage, SystemMessage
 import tiktoken
 
+
 def init_judge(chat_service):
     llm = chat_service.initialize_llm(model="gpt-4o", temperature="0.0")
     return llm
 
+
 def init_vta(chat_service):
     llm = chat_service.initialize_llm(model="gpt-4o-mini")
-    course_id = 'SC2107'
+    course_id = "SC2107"
 
     vector_store_response = load_vectorstore_from_gcs(course_id)
 
-    if vector_store_response["code"] == 200:  
+    if vector_store_response["code"] == 200:
         loaded_faiss_vs = vector_store_response["data"]
-    else: 
-        raise Exception('failed to load faiss vector store')
+    else:
+        raise Exception("failed to load faiss vector store")
 
     return llm, loaded_faiss_vs
 
-def invoke_response_detailed(llm, persona, task, conditions, output_style, vectorstore, query, chat_service):
 
+def invoke_response_detailed(
+    llm, persona, task, conditions, output_style, vectorstore, query, chat_service
+):
     # construct initial system message
     sysmsg = f"{persona} {task} {conditions} {output_style}"
     conversation = [SystemMessage(content=sysmsg)]
@@ -35,7 +38,6 @@ def invoke_response_detailed(llm, persona, task, conditions, output_style, vecto
         return "No relevant context found.", 0, None
 
     formatted_contexts = chat_service.format_contexts(raw_contexts)
-  
 
     maintopic = raw_contexts[0].get("title", None) if raw_contexts else None
 
@@ -47,7 +49,7 @@ def invoke_response_detailed(llm, persona, task, conditions, output_style, vecto
         At the end of your answer, add the slide title and page that you used. (only if query is within course scope.)
         Answer concisely and do not use more than 10 sentences.
     """
-   
+
     conversation.append(HumanMessage(content=context_query))
 
     response, tokens_used = chat_service.get_tokens_used(conversation, llm)
@@ -60,15 +62,15 @@ def invoke_response_detailed(llm, persona, task, conditions, output_style, vecto
     )
     return clean_response, tokens_used, maintopic, formatted_contexts
 
+
 def vta_response_generation(llm, filename, vectorstore, chat_service):
-    
     qna_storage = []
 
     data = pd.read_excel(filename)
 
-    for index,row in data.iterrows(): 
-        question = row['Question']
-        correct_answer = row['Answer']
+    for index, row in data.iterrows():
+        question = row["Question"]
+        correct_answer = row["Answer"]
 
         # generate response
         response, tokens_used, maintopic, trimmed_contexts = invoke_response_detailed(
@@ -78,13 +80,32 @@ def vta_response_generation(llm, filename, vectorstore, chat_service):
             conditions="If user asks any query beyond Microprocessor System Design and Development,tell the user you are not an expert on the topic.",
             output_style="Keep answers concise, use 10 or less sentences for your response. Add extra information if it helps to clarify your answer",
             vectorstore=vectorstore,
-            query=question, chat_service = chat_service
-        ) 
-        item = {'question': question, 'response': response, 'contexts': trimmed_contexts, 'correct_answer': correct_answer}
+            query=question,
+            chat_service=chat_service,
+        )
+        item = {
+            "question": question,
+            "response": response,
+            "contexts": trimmed_contexts,
+            "correct_answer": correct_answer,
+        }
         qna_storage.append(item)
     return qna_storage
 
-def generic_llm_judge(llm,query, response, contexts, correct_answer, persona, task, conditions, output_style,evaluation_criteria , chat_service): 
+
+def generic_llm_judge(
+    llm,
+    query,
+    response,
+    contexts,
+    correct_answer,
+    persona,
+    task,
+    conditions,
+    output_style,
+    evaluation_criteria,
+    chat_service,
+):
     sysmsg = f"{persona} {task} {conditions} {output_style}"
     conversation = [SystemMessage(content=sysmsg)]
 
@@ -103,67 +124,77 @@ def generic_llm_judge(llm,query, response, contexts, correct_answer, persona, ta
     Context: {contexts}
     Ground truth Answer: {correct_answer}
     """
-    print('---evaluation prompt')
+    print("---evaluation prompt")
     print(evaluation_prompt)
 
     conversation.append(HumanMessage(content=evaluation_prompt))
     evaluation_response, tokens_used = chat_service.get_tokens_used(conversation, llm)
-    clean_evaluation_response = evaluation_response.replace("System:", "").replace("Human:", "").strip()
-    
+    clean_evaluation_response = (
+        evaluation_response.replace("System:", "").replace("Human:", "").strip()
+    )
+
     return clean_evaluation_response, tokens_used
 
-def response_handler(evaluation): 
-    print('------')
+
+def response_handler(evaluation):
+    print("------")
     print(evaluation)
-    score =""
-    justification =""
+    score = ""
+    justification = ""
     capture_justification = False
 
     for line in evaluation.splitlines():
-            if "Score:" in line:
-                score = line.split("Score:")[-1].strip()
-            elif "Justification:" in line:
-                justification = line.split("Justification:")[-1].strip()
-                capture_justification = True
-            elif capture_justification:
-                justification += "\n" + line.strip()
-            
+        if "Score:" in line:
+            score = line.split("Score:")[-1].strip()
+        elif "Justification:" in line:
+            justification = line.split("Justification:")[-1].strip()
+            capture_justification = True
+        elif capture_justification:
+            justification += "\n" + line.strip()
+
     return score, justification
 
 
-def perform_evaluation(llm, qna_storage, metric_name, evaluation_criteria, required_fields,chat_service,):
+def perform_evaluation(
+    llm,
+    qna_storage,
+    metric_name,
+    evaluation_criteria,
+    required_fields,
+    chat_service,
+):
     """
     Performs evaluations for a specific metric (e.g., relevance, groundedness, correctness).
     """
     results = []
     for item in qna_storage:
-        
         inputs = {key: item.get(key, "") for key in required_fields}
 
         evaluation, tokens_used = generic_llm_judge(
             llm=llm,
             query=inputs.get("question"),
             response=inputs.get("response"),
-            contexts=inputs.get("contexts", ""),  
-            correct_answer = inputs.get("correct_answer", ""),
-
+            contexts=inputs.get("contexts", ""),
+            correct_answer=inputs.get("correct_answer", ""),
             persona="You are a neutral and fair evaluator of chatbot responses.",
             task=f"Evaluate chatbot responses based on {metric_name}.",
             conditions="Focus on the specific evaluation criteria provided.",
             output_style="Provide concise and short justification of less than 5 sentences for scores. Be strict",
             evaluation_criteria=evaluation_criteria,
-            chat_service = chat_service
+            chat_service=chat_service,
         )
 
         score, justification = response_handler(evaluation)
 
-        results.append({
-            "metric": metric_name,
-            "query": inputs.get("question"),
-            "response": inputs.get("response"),
-            "score": score,
-            "justification": justification,
-        })
+        results.append(
+            {
+                "metric": metric_name,
+                "query": inputs.get("question"),
+                "response": inputs.get("response"),
+                "score": score,
+                "justification": justification,
+            }
+        )
     return results
 
 
@@ -171,23 +202,26 @@ def save_to_csv(data, filename, fieldnames):
     """
     Saves evaluation results to a CSV file.
     """
-    
+
     with open(filename, mode="w", newline="", encoding="utf-8") as file:
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(data)
 
-def main(): 
+
+def main():
     chat_service = ChatService()
     llm = init_judge(chat_service)
-    chatllm, vectorstore =  init_vta(chat_service)
+    chatllm, vectorstore = init_vta(chat_service)
 
-    filename = os.path.join(os.path.dirname(__file__), "tests", "clock.xlsx") # include files that you want to evaluate
+    filename = os.path.join(
+        os.path.dirname(__file__), "tests", "clock.xlsx"
+    )  # include files that you want to evaluate
     if not os.path.exists(filename):
         raise FileNotFoundError(f"File not found: {filename}")
-    
-    print('Getting responses from vta')
-    qna_storage = vta_response_generation(chatllm, filename,vectorstore,chat_service)
+
+    print("Getting responses from vta")
+    qna_storage = vta_response_generation(chatllm, filename, vectorstore, chat_service)
 
     evaluations = [
         {
@@ -204,7 +238,7 @@ def main():
             ..
             """,
             "required_fields": ["question", "contexts"],
-            "filename": "retrieval_evaluations.csv"
+            "filename": "retrieval_evaluations.csv",
         },
         {
             "metric_name": "Relevance to Query",
@@ -215,7 +249,7 @@ def main():
             - Score: Rate on a scale of 1–10 with justification. Be strict with your scores.
             """,
             "required_fields": ["question", "response"],
-            "filename": "relevance_evaluations.csv"
+            "filename": "relevance_evaluations.csv",
         },
         {
             "metric_name": "Groundedness",
@@ -226,7 +260,7 @@ def main():
             - Score: Rate on a scale of 1–10 with justification. Be strict with your scores.
             """,
             "required_fields": ["question", "response", "contexts"],
-            "filename": "groundedness_evaluations.csv"
+            "filename": "groundedness_evaluations.csv",
         },
         {
             "metric_name": "Correctness",
@@ -237,39 +271,46 @@ def main():
             - Score: Rate on a scale of 1–10 how close the generated response is to the ground truth answer with justification. Be strict with your scores.
             """,
             "required_fields": ["question", "response", "correct_answer"],
-            "filename": "correctness_evaluations.csv"
+            "filename": "correctness_evaluations.csv",
         },
     ]
     results_dir = os.path.join(os.path.dirname(__file__), "results")
 
-    print('performing evaluations on responses from vta...')
+    print("performing evaluations on responses from vta...")
     # Perform evaluations for each metric
     for config in evaluations:
         metric_name = config["metric_name"]
-        print('evaluating ' + metric_name)
+        print("evaluating " + metric_name)
         metric_results = perform_evaluation(
-            llm, qna_storage, config["metric_name"], config["evaluation_criteria"], config["required_fields"], chat_service=chat_service
+            llm,
+            qna_storage,
+            config["metric_name"],
+            config["evaluation_criteria"],
+            config["required_fields"],
+            chat_service=chat_service,
         )
         savetofilename = os.path.join(results_dir, config["filename"])
 
-        save_to_csv(metric_results, savetofilename, ["metric", "query", "response", "score", "justification"])
+        save_to_csv(
+            metric_results,
+            savetofilename,
+            ["metric", "query", "response", "score", "justification"],
+        )
 
-        if metric_name == "Retrieval Quality": 
+        if metric_name == "Retrieval Quality":
             retrieval_data = [
-                {"query": item["question"], 
-                 "contexts": item["contexts"]} 
+                {"query": item["question"], "contexts": item["contexts"]}
                 for item in qna_storage
             ]
-            retrieval_filename = os.path.join(results_dir, "retrieval_queries_contexts.csv")
+            retrieval_filename = os.path.join(
+                results_dir, "retrieval_queries_contexts.csv"
+            )
             save_to_csv(retrieval_data, retrieval_filename, ["query", "contexts"])
-        
 
-
-        print('completed evaluation for ' + metric_name)
+        print("completed evaluation for " + metric_name)
 
     print("Evaluations completed and saved to CSV files.")
 
-    
+
 if __name__ == "__main__":
     main()
-

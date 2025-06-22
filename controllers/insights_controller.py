@@ -4,9 +4,10 @@ from models.chat_history_model import ChatHistoryModel
 from models.courses_model import CoursesModel
 from models.pdf_model import PDFModel
 
+
 class InsightsController:
     """Handles data retrieval and processing for insights page."""
-    
+
     def __init__(self):
         self.user_model = UserModel()
         self.chat_model = ChatHistoryModel()
@@ -22,12 +23,11 @@ class InsightsController:
         else:
             tokens_response = self.user_model.get_user_tokens_used(user_id)
             chats_response = self.user_model.get_user_chat_count(user_id)
-        
 
-        if chats_response["code"] != 200 or tokens_response["code"] != 200: 
-            return None, None 
+        if chats_response["code"] != 200 or tokens_response["code"] != 200:
+            return None, None
 
-        return tokens_response['data'], chats_response['data']
+        return tokens_response["data"], chats_response["data"]
 
     # for chat analytics
     def get_chat_counts_by_topic(self, user_id, course_id, is_admin):
@@ -39,7 +39,9 @@ class InsightsController:
 
         # Get chat history
         if is_admin:
-            chat_history_response = self.chat_model.get_chat_history_by_course(course_id)
+            chat_history_response = self.chat_model.get_chat_history_by_course(
+                course_id
+            )
         else:
             chat_history_response = self.chat_model.get_chat_history(user_id, course_id)
 
