@@ -2,6 +2,7 @@ import logging
 import structlog
 
 
+# Reference: https://gist.github.com/nkhitrov/38adbb314f0d35371eba4ffb8f27078f
 class Logger:
     def __init__(self):
         self.logger = structlog.stdlib.get_logger()
@@ -49,8 +50,8 @@ def configure_logger(enable_json_logs: bool = False):
         processors=shared_processors
         + [structlog.stdlib.ProcessorFormatter.wrap_for_formatter],
         logger_factory=structlog.stdlib.LoggerFactory(),
-        # call log with await syntax in thread pool executor
-        wrapper_class=structlog.stdlib.AsyncBoundLogger,
+        # @TODO Experiment with AsyncBoundLogger in future to squeeze out a bit more performance.
+        wrapper_class=structlog.stdlib.BoundLogger,
         cache_logger_on_first_use=True,
     )
 
@@ -88,6 +89,3 @@ def _extract_from_record(_, __, event_dict):
     event_dict["thread_name"] = record.threadName
     event_dict["process_name"] = record.processName
     return event_dict
-
-
-configure_logger()
