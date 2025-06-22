@@ -3,11 +3,19 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_community.callbacks import get_openai_callback
 import streamlit as st
 from langchain_openai import ChatOpenAI
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 
 class ChatService:
     def __init__(self):
-        OpenAI.api_key = st.secrets["OPENAI_API_KEY"]
+        OpenAI.api_key = os.getenv("OPENAI_API_KEY")
+        if not OpenAI.api_key:
+            raise ValueError(
+                "OpenAI API key is not set. Please set the OPENAI_API_KEY environment variable."
+            )
 
     """Function to initialize LLM"""
 
