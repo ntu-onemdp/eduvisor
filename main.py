@@ -3,6 +3,11 @@ import uvicorn
 from fastapi import FastAPI, UploadFile
 from models.pdf_model import PDFModel
 from dotenv import load_dotenv
+from models.post import Post
+
+# For fastapi simple cache
+from fastapi_simple_cache.backends.inmemory import InMemoryBackend
+from fastapi_simple_cache import FastAPISimpleCache
 
 # Load environment variables
 load_dotenv()
@@ -52,6 +57,23 @@ def delete_pdf(filename: str):
     response = pdf_model.delete_pdf_from_gcs(filename)
     log.info(f"Delete PDF response: {response}")
     return response
+
+
+# Get response from thread.
+@app.get("/response")
+def get_response(post: Post):
+    log.info(f"Getting response for post: {post.title}")
+    return {
+        "post_title": post.title,
+        "post_content": post.content,
+        "response": f"Response for {post.title} with content: {post.content}",
+    }
+
+
+@app.on_event("startup")
+async def startup():
+    backend = InMemoryBackend()
+    FastAPISimpleCache.init(backend=backend)
 
 
 if __name__ == "__main__":

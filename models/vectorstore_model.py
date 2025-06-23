@@ -1,28 +1,27 @@
 import os
 import io
 import pickle
+from fastapi_simple_cache.decorator import cache
 import faiss
 import numpy as np
 from google.cloud import storage
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
-from langchain_community.docstore.in_memory import InMemoryDocstore
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.docstore.document import Document
 from response import response_handler
-import streamlit as st
 from PyPDF2 import PdfReader
 
 # Initialize Google Cloud credentials
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = st.secrets[
-    "GOOGLE_APPLICATION_CREDENTIALS"
-]
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "credentials/service-account-key.json"
 
 
 class VectorStoreModel:
-    BUCKET_NAME = "vtabucket"
+    BUCKET_NAME = os.getenv("GCS_BUCKET_NAME")
+    if not BUCKET_NAME:
+        raise ValueError("GCS_BUCKET_NAME environment variable is not set.")
 
-    def save_vectorstore_to_gcs_direct(self, vectorstore, course_id):
+    def save_vectorstore_to_gcs_direct(self, vectorstore):
         """
         Saves a FAISS vector store to Google Cloud Storage.
 
@@ -31,9 +30,9 @@ class VectorStoreModel:
             course_id: The course ID.
         """
         try:
-            index_blob_name = f"vectorstore/{course_id}/index.faiss"
-            metadata_blob_name = f"vectorstore/{course_id}/metadata.pkl"
-            mapping_blob_name = f"vectorstore/{course_id}/mapping.pkl"
+            index_blob_name = "vectorstore/index.faiss"
+            metadata_blob_name = "vectorstore/metadata.pkl"
+            mapping_blob_name = "vectorstore/mapping.pkl"
 
             faiss_index_buffer = faiss.serialize_index(vectorstore.index)
 
@@ -58,7 +57,7 @@ class VectorStoreModel:
                 mapping_buffer, content_type="application/octet-stream"
             )
 
-            return response_handler(201, f"Chatbot updated for Course ID: {course_id}.")
+            return response_handler(201, "Chatbot updated ")
         except Exception as e:
             return response_handler(500, "Failed to Save Vectorstore", str(e))
 
@@ -105,7 +104,6 @@ class VectorStoreModel:
 
             embeddings = OpenAIEmbeddings()
             vectorstore = FAISS.from_documents(courseinfo_docs, embeddings)
-            st.cache_resource.clear()
 
             return response_handler(
                 200, "Vectorstore Generated Successfully", vectorstore
@@ -115,15 +113,13 @@ class VectorStoreModel:
             return response_handler(500, "Failed to Generate Vectorstore", str(e))
 
 
-@st.cache_resource(ttl=3600)
-def load_vectorstore_from_gcs(course_id):
+@cache(expire=3600)
+def load_vectorstore_from_gcs():
     try:
         bucket_name = "vtabucket"
-        index_blob_name = f"vectorstore/{course_id}/index.faiss"
-        metadata_blob_name = f"vectorstore/{course_id}/metadata.pkl"
-        mapping_blob_name = (
-            f"vectorstore/{course_id}/mapping.pkl"  # New blob for mapping
-        )
+        index_blob_name = "vectorstore/index.faiss"
+        metadata_blob_name = "vectorstore/metadata.pkl"
+        mapping_blob_name = "vectorstore/mapping.pkl"  # New blob for mapping
 
         # Initialize GCS client
         client = storage.Client()
