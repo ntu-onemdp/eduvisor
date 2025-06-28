@@ -113,10 +113,13 @@ class VectorStoreModel:
             return response_handler(500, "Failed to Generate Vectorstore", str(e))
 
 
-@cache(expire=3600)
+# @cache(expire=3600)
 def load_vectorstore_from_gcs():
     try:
-        bucket_name = "vtabucket"
+        bucket_name = os.getenv("GCS_BUCKET_NAME")
+        if not bucket_name:
+            raise ValueError("GCS_BUCKET_NAME environment variable is not set.")
+
         index_blob_name = "vectorstore/index.faiss"
         metadata_blob_name = "vectorstore/metadata.pkl"
         mapping_blob_name = "vectorstore/mapping.pkl"  # New blob for mapping

@@ -1,12 +1,11 @@
 from langchain_openai import OpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_community.callbacks import get_openai_callback
-import streamlit as st
 from langchain_openai import ChatOpenAI
-from dotenv import load_dotenv
 import os
+from services.logger import Logger
 
-load_dotenv()
+logger = Logger()
 
 
 class ChatService:
@@ -17,17 +16,16 @@ class ChatService:
                 "OpenAI API key is not set. Please set the OPENAI_API_KEY environment variable."
             )
 
-    """Function to initialize LLM"""
-
     # 4o is a good model as well
     def initialize_llm(self, model="gpt-4o-mini", temperature=0.6):
+        """Function to initialize LLM"""
         llm = ChatOpenAI(model=model, max_tokens=800, temperature=temperature)
-        print(f"LLM initialized with model: {model}, temperature: {temperature}")
+
+        logger.info(f"LLM initialized with model: {model}, temperature: {temperature}")
         return llm
 
-    """Function to query vector store"""
-
     def query_vectorstore(self, vectorstore, query, k=5):
+        """Function to query vector store"""
         results = vectorstore.similarity_search_with_score(query, k=k)
         # Return the context along with metadata
         context_with_metadata = []
@@ -56,13 +54,11 @@ class ChatService:
 
         return "".join(final_contexts)
 
-    """Function to build persona of gpt"""
-
     def invoke_response(
         self, llm, persona, task, conditions, output_style, vectorstore, query
     ):
         """
-        Generates a response from the LLM using the given persona, task, and context from a vectorstore.
+        Generates a response from the LLM using the given persona, task, and context from a vectorstore. Builds persona of gpt.
 
         Args:
             llm: The language model instance.
@@ -102,7 +98,7 @@ class ChatService:
         - Be as concise as possible and answer the question to the best of your ability.
         - If the query is within the course scope, include the slide title and page used in brackets at the end of the whole response.
         """
-        print(context_query)
+        logger.debug(context_query)
         conversation.append(HumanMessage(content=context_query))
 
         # generate response from the LLM
@@ -118,9 +114,8 @@ class ChatService:
 
         return clean_response, tokens_used, maintopic
 
-    """Function to check API usage"""
-
     def get_tokens_used(self, conversation, llm):
+        """Function to check API usage"""
         with get_openai_callback() as cb:
             response = llm.invoke(conversation)
             tokens_used = cb.total_tokens  # get total tokens used in this query
