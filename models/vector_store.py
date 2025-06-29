@@ -11,15 +11,100 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.docstore.document import Document
 from response import response_handler
 from PyPDF2 import PdfReader
+from services.logger import Logger
+from langchain_community.docstore.in_memory import InMemoryDocstore
+from io import BytesIO
+
+logger = Logger()
 
 # Initialize Google Cloud credentials
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "credentials/service-account-key.json"
 
 
-class VectorStoreModel:
+class VectorStore:
     BUCKET_NAME = os.getenv("GCS_BUCKET_NAME")
     if not BUCKET_NAME:
         raise ValueError("GCS_BUCKET_NAME environment variable is not set.")
+
+    def __init__(self):
+        embeddings = OpenAIEmbeddings()
+
+        # Retrieve vectorstore from gcs
+        response = load_vectorstore_from_gcs()
+        logger.debug(response)
+        if response["code"] != 200:
+            logger.warning(
+                "error loading vectorstore from gcs - initializing vectorstore"
+            )
+
+            # Step 1: Get embedding dimension (example: 1536 for many OpenAI models)
+            embedding_dim = 1536
+
+            # Step 2: Create an empty FAISS index
+            index = faiss.IndexFlatL2(embedding_dim)
+
+            # Step 3: Prepare the empty docstore and mapping
+            docstore = InMemoryDocstore({})
+            index_to_docstore_id = {}
+
+            # Step 4: Create the LangChain FAISS vectorstore
+            self.vector_store = FAISS(
+                embedding_function=embeddings,
+                index=index,
+                docstore=docstore,
+                index_to_docstore_id=index_to_docstore_id,
+            )
+        else:
+            self.vector_store = response["data"]
+
+        logger.info("Vector store initialized")
+        pass
+
+    # Add document to vectorstore
+    def add_document(
+        self, pdfs: list[tuple[str, BytesIO]], chunk_size=3000, chunk_overlap=100
+    ) -> None:
+        """
+        Add document(s) to vectorstore
+
+        Args:
+            files (list[Document]): list of pdfs to add to vectorstore
+        """
+        documents = []
+
+        for filename, content in pdfs:
+            pdf = PdfReader(content)
+            title = filename.replace(".pdf", "")
+
+            for page_number, page in enumerate(pdf.pages, start=1):
+                page_content = page.extract_text()
+
+                if len(page_content) > chunk_size:
+                    # Split page content into chunks if length of page content exceeds the chunk size setting.
+                    text_splitter = RecursiveCharacterTextSplitter(
+                        chunk_size=chunk_size, chunk_overlap=chunk_overlap
+                    )
+                    chunks = text_splitter.split_text(page_content)
+
+                    for i, chunk in enumerate(chunks):
+                        doc = Document(
+                            page_content=chunk,
+                            metadata={
+                                "title": title,
+                                "page": page_number,
+                                "chunk": i + 1,
+                            },
+                        )
+                        documents.append(doc)
+                else:
+                    doc = Document(
+                        page_content=page_content,
+                        metadata={"title": title, "page": page_number, "chunk": 1},
+                    )
+                    documents.append(doc)
+
+        logger.info(f"{len(pdfs)} added to vectorstore")
+        self.vector_store.add_documents(documents)
 
     def save_vectorstore_to_gcs_direct(self, vectorstore):
         """
@@ -57,7 +142,7 @@ class VectorStoreModel:
                 mapping_buffer, content_type="application/octet-stream"
             )
 
-            return response_handler(201, "Chatbot updated ")
+            return response_handler(201, "Vectorstore updated ")
         except Exception as e:
             return response_handler(500, "Failed to Save Vectorstore", str(e))
 

@@ -10,11 +10,14 @@ logger = Logger()
 # Initialize Google Cloud credentials
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "credentials/service-account-key.json"
 
+BUCKET_NAME = os.getenv("GCS_BUCKET_NAME")
+if not BUCKET_NAME:
+    raise ValueError("GCS_BUCKET_NAME environment variable is not set.")
 
-class PDFModel:
-    BUCKET_NAME = os.getenv("GCS_BUCKET_NAME")
-    if not BUCKET_NAME:
-        raise ValueError("GCS_BUCKET_NAME environment variable is not set.")
+
+class PdfStore:
+    def __init__(self):
+        pass
 
     def upload_pdf_to_gcs(self, uploaded_file: UploadFile):
         """
@@ -70,8 +73,7 @@ class PDFModel:
 
             return response_handler(200, "PDFs Fetched Successfully", files)
         except Exception as e:
-            print("fetch")
-            print(str(e))
+            logger.error(f"error fetching pdfs, {str(e)}")
             return response_handler(500, "Failed to Fetch PDFs", str(e))
 
     def list_all(self):

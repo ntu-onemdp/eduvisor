@@ -1,7 +1,7 @@
 from services.logger import Logger, configure_logger
 import uvicorn
 from fastapi import FastAPI, UploadFile
-from models.pdf_model import PDFModel
+from models.pdf_store import PdfStore
 from dotenv import load_dotenv
 from models.post import Post
 
@@ -11,17 +11,19 @@ from fastapi_simple_cache import FastAPISimpleCache
 
 # LLM related
 from services.chat_service import ChatService
-from models.vectorstore_model import (
+from models.vector_store import (
     load_vectorstore_from_gcs,
-    VectorStoreModel,
+    VectorStore,
 )
 
-# Load environment variables
-load_dotenv()
 
 app = FastAPI()
 
 log = Logger()
+
+# Load stores
+pdf_store = PdfStore()
+vector_store = VectorStore()
 
 
 @app.get("/")
@@ -33,10 +35,10 @@ def read_root():
 # Upload PDF to Google Cloud Storage
 @app.post("/upload")
 def upload_pdf(file: UploadFile):
-    pdf_model = PDFModel()
-    response = pdf_model.upload_pdf_to_gcs(file)
-    vector_store = VectorStoreModel()
-    vector_store.generate_vectorstore_from_memory
+    response = pdf_store.upload_pdf_to_gcs(file)
+    filename = file.filename
+    content = file.file
+    vector_store.add_document([(filename, content)])
     log.info(f"PDF upload response: {response}")
     return response
 
@@ -44,8 +46,7 @@ def upload_pdf(file: UploadFile):
 # List all PDFs
 @app.get("/all")
 def list_all_pdfs():
-    pdf_model = PDFModel()
-    response = pdf_model.list_all()
+    response = pdf_store.list_all()
     log.info(f"List all PDFs response: {response}")
     return response
 
@@ -53,8 +54,7 @@ def list_all_pdfs():
 # Fetch PDFs from Google Cloud Storage
 @app.get("/fetch")
 def fetch_pdfs():
-    pdf_model = PDFModel()
-    response = pdf_model.fetch_pdfs_from_gcs_in_memory()
+    response = pdf_store.fetch_pdfs_from_gcs_in_memory()
     log.info(f"Fetch PDFs response: {response}")
     return response
 
@@ -62,8 +62,7 @@ def fetch_pdfs():
 # Delete a specific PDF
 @app.delete("/{filename}")
 def delete_pdf(filename: str):
-    pdf_model = PDFModel()
-    response = pdf_model.delete_pdf_from_gcs(filename)
+    response = pdf_store.delete_pdf_from_gcs(filename)
     log.info(f"Delete PDF response: {response}")
     return response
 
@@ -78,8 +77,7 @@ def get_response(post: Post):
     llm = chatService.initialize_llm()
 
     # Load pdfs into memory
-    pdf_model = PDFModel()
-    pdf_response = pdf_model.fetch_pdfs_from_gcs_in_memory()
+    pdf_response = pdf_store.fetch_pdfs_from_gcs_in_memory()
 
     if pdf_response["code"] != 200:
         log.error("error fetching pdfs")
@@ -91,7 +89,7 @@ def get_response(post: Post):
         log.warning("no pdfs found")
         return {"response": "no pdfs found."}
 
-    vector_store = VectorStoreModel()
+    vector_store = VectorStore()
     vector_store_response = vector_store.generate_vectorstore_from_memory(pdfs)
 
     if vector_store_response["code"] != 200:
@@ -149,6 +147,8 @@ async def startup():
 
 
 if __name__ == "__main__":
+    # Load environment variables
+    load_dotenv()
     configure_logger()
 
     uvicorn.run(app)
