@@ -33,12 +33,12 @@ class PdfStore:
             logger.debug(f"Received file: {file_name}, Blob name: {blob_name}")
 
             client = storage.Client()
-            logger.debug(f"Uploading {file_name} to GCS bucket {self.BUCKET_NAME}")
+            logger.debug(f"Uploading {file_name} to GCS bucket {BUCKET_NAME}")
 
-            bucket = client.bucket(self.BUCKET_NAME)
-            logger.debug(f"Bucket {self.BUCKET_NAME} accessed successfully")
+            bucket = client.bucket(BUCKET_NAME)
+            logger.debug(f"Bucket {BUCKET_NAME} accessed successfully")
             blob = bucket.blob(blob_name)
-            logger.debug(f"Blob {blob_name} created in bucket {self.BUCKET_NAME}")
+            logger.debug(f"Blob {blob_name} created in bucket {BUCKET_NAME}")
 
             blob.upload_from_file(uploaded_file.file, content_type="application/pdf")
 
@@ -61,7 +61,7 @@ class PdfStore:
             files = []
 
             client = storage.Client()
-            bucket = client.bucket(self.BUCKET_NAME)
+            bucket = client.bucket(BUCKET_NAME)
             blobs = bucket.list_blobs(prefix=prefix)
 
             for blob in blobs:
@@ -88,7 +88,7 @@ class PdfStore:
             filenames = []
 
             client = storage.Client()
-            bucket = client.bucket(self.BUCKET_NAME)
+            bucket = client.bucket(BUCKET_NAME)
             blobs = bucket.list_blobs(prefix=prefix)
 
             for blob in blobs:
@@ -117,7 +117,7 @@ class PdfStore:
             blob_name = f"pdfs/{filename}"
 
             client = storage.Client()
-            bucket = client.bucket(self.BUCKET_NAME)
+            bucket = client.bucket(BUCKET_NAME)
             blob = bucket.blob(blob_name)
 
             if not blob.exists():

@@ -22,12 +22,16 @@ os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "credentials/service-account-key.
 
 
 class VectorStore:
+    # Class constants
     BUCKET_NAME = os.getenv("GCS_BUCKET_NAME")
     if not BUCKET_NAME:
         raise ValueError("GCS_BUCKET_NAME environment variable is not set.")
 
+    # Embedding model to use. See https://platform.openai.com/docs/models for list of embedding models available
+    MODEL = "text-embedding-3-small"
+
     def __init__(self):
-        embeddings = OpenAIEmbeddings()
+        embeddings = OpenAIEmbeddings(model=self.MODEL)
 
         # Retrieve vectorstore from gcs
         response = load_vectorstore_from_gcs()
@@ -104,6 +108,8 @@ class VectorStore:
                     documents.append(doc)
 
         logger.info(f"{len(pdfs)} added to vectorstore")
+
+        # @NOTE not working due to api limits
         self.vector_store.add_documents(documents)
 
     def save_vectorstore_to_gcs_direct(self, vectorstore):
