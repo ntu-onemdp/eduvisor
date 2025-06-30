@@ -1,12 +1,9 @@
 import os
 import io
 import pickle
-from fastapi_simple_cache.decorator import cache
 import faiss
 import numpy as np
 from google.cloud import storage
-
-# from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.docstore.document import Document
@@ -34,10 +31,10 @@ class VectorStore:
 
     def __init__(self):
         # embeddings = OpenAIEmbeddings(model=self.MODEL)
-        embeddings = OllamaEmbeddings(model="bge-m3:567m")
+        self.embeddings = OllamaEmbeddings(model="bge-m3:567m")
 
         # Retrieve vectorstore from gcs
-        response = load_vectorstore_from_gcs()
+        response = self.load_vectorstore_from_gcs()
         logger.debug(response)
         if response["code"] != 200:
             logger.warning(
@@ -56,7 +53,7 @@ class VectorStore:
 
             # Step 4: Create the LangChain FAISS vectorstore
             self.vector_store = FAISS(
-                embedding_function=embeddings,
+                embedding_function=self.embeddings,
                 index=index,
                 docstore=docstore,
                 index_to_docstore_id=index_to_docstore_id,
@@ -110,7 +107,6 @@ class VectorStore:
                     )
                     documents.append(doc)
 
-        # @NOTE not working due to api limits
         self.vector_store.add_documents(documents)
 
         logger.info(f"{len(pdfs)} document added to vectorstore")
@@ -196,8 +192,7 @@ class VectorStore:
                         )
                         courseinfo_docs.append(doc)
 
-            embeddings = OllamaEmbeddings(model="bge-m3:567m")
-            vectorstore = FAISS.from_documents(courseinfo_docs, embeddings)
+            vectorstore = FAISS.from_documents(courseinfo_docs, self.embeddings)
 
             return response_handler(
                 200, "Vectorstore Generated Successfully", vectorstore
@@ -206,48 +201,41 @@ class VectorStore:
         except Exception as e:
             return response_handler(500, "Failed to Generate Vectorstore", str(e))
 
+    def load_vectorstore_from_gcs(self):
+        try:
+            index_blob_name = "vectorstore/index.faiss"
+            metadata_blob_name = "vectorstore/metadata.pkl"
+            mapping_blob_name = "vectorstore/mapping.pkl"  # New blob for mapping
 
-# @cache(expire=3600)
-def load_vectorstore_from_gcs():
-    try:
-        bucket_name = os.getenv("GCS_BUCKET_NAME")
-        if not bucket_name:
-            raise ValueError("GCS_BUCKET_NAME environment variable is not set.")
+            # Initialize GCS client
+            client = storage.Client()
+            bucket = client.bucket(self.BUCKET_NAME)
 
-        index_blob_name = "vectorstore/index.faiss"
-        metadata_blob_name = "vectorstore/metadata.pkl"
-        mapping_blob_name = "vectorstore/mapping.pkl"  # New blob for mapping
+            # Download FAISS index
+            faiss_index_buffer = bucket.blob(index_blob_name).download_as_bytes()
+            faiss_index = faiss.deserialize_index(
+                np.frombuffer(faiss_index_buffer, dtype=np.uint8)
+            )
 
-        # Initialize GCS client
-        client = storage.Client()
-        bucket = client.bucket(bucket_name)
+            # Download metadata
+            metadata_buffer = bucket.blob(metadata_blob_name).download_as_bytes()
+            metadata = pickle.loads(metadata_buffer)
 
-        # Download FAISS index
-        faiss_index_buffer = bucket.blob(index_blob_name).download_as_bytes()
-        faiss_index = faiss.deserialize_index(
-            np.frombuffer(faiss_index_buffer, dtype=np.uint8)
-        )
+            # Download index_to_docstore_id
+            mapping_buffer = bucket.blob(mapping_blob_name).download_as_bytes()
+            index_to_docstore_id = pickle.loads(mapping_buffer)
 
-        # Download metadata
-        metadata_buffer = bucket.blob(metadata_blob_name).download_as_bytes()
-        metadata = pickle.loads(metadata_buffer)
+            # Reconstruct the docstore
+            docstore = InMemoryDocstore(metadata)
 
-        # Download index_to_docstore_id
-        mapping_buffer = bucket.blob(mapping_blob_name).download_as_bytes()
-        index_to_docstore_id = pickle.loads(mapping_buffer)
-
-        # Reconstruct the docstore
-        docstore = InMemoryDocstore(metadata)
-
-        # Reconstruct the FAISS vectorstore
-        vectorstore = FAISS(
-            embedding_function=OllamaEmbeddings(model="bge-m3:567m"),
-            index=faiss_index,
-            docstore=docstore,
-            index_to_docstore_id=index_to_docstore_id,
-        )
-        return response_handler(200, "Vectorstore Loaded Successfully", vectorstore)
-    except Exception as e:
-        print("load  vectorstore ")
-        print(str(e))
-        return response_handler(500, "Failed to Load Vectorstore", str(e))
+            # Reconstruct the FAISS vectorstore
+            vectorstore = FAISS(
+                embedding_function=self.embeddings,
+                index=faiss_index,
+                docstore=docstore,
+                index_to_docstore_id=index_to_docstore_id,
+            )
+            return response_handler(200, "Vectorstore Loaded Successfully", vectorstore)
+        except Exception as e:
+            logger.error(f"failed to load vector store, {str(e)}")
+            return response_handler(500, "Failed to Load Vectorstore", str(e))
