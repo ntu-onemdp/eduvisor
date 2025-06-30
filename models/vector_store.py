@@ -5,7 +5,8 @@ from fastapi_simple_cache.decorator import cache
 import faiss
 import numpy as np
 from google.cloud import storage
-from langchain_openai import OpenAIEmbeddings
+
+# from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.docstore.document import Document
@@ -14,6 +15,7 @@ from PyPDF2 import PdfReader
 from services.logger import Logger
 from langchain_community.docstore.in_memory import InMemoryDocstore
 from io import BytesIO
+from langchain_ollama import OllamaEmbeddings
 
 logger = Logger()
 
@@ -31,7 +33,8 @@ class VectorStore:
     MODEL = "text-embedding-3-small"
 
     def __init__(self):
-        embeddings = OpenAIEmbeddings(model=self.MODEL)
+        # embeddings = OpenAIEmbeddings(model=self.MODEL)
+        embeddings = OllamaEmbeddings(model="bge-m3:567m")
 
         # Retrieve vectorstore from gcs
         response = load_vectorstore_from_gcs()
@@ -42,7 +45,7 @@ class VectorStore:
             )
 
             # Step 1: Get embedding dimension (example: 1536 for many OpenAI models)
-            embedding_dim = 1536
+            embedding_dim = 1024
 
             # Step 2: Create an empty FAISS index
             index = faiss.IndexFlatL2(embedding_dim)
@@ -107,10 +110,10 @@ class VectorStore:
                     )
                     documents.append(doc)
 
-        logger.info(f"{len(pdfs)} added to vectorstore")
-
         # @NOTE not working due to api limits
         self.vector_store.add_documents(documents)
+
+        logger.info(f"{len(pdfs)} document added to vectorstore")
 
     def save_vectorstore_to_gcs_direct(self, vectorstore):
         """
@@ -193,7 +196,7 @@ class VectorStore:
                         )
                         courseinfo_docs.append(doc)
 
-            embeddings = OpenAIEmbeddings()
+            embeddings = OllamaEmbeddings(model="bge-m3:567m")
             vectorstore = FAISS.from_documents(courseinfo_docs, embeddings)
 
             return response_handler(
@@ -234,15 +237,11 @@ def load_vectorstore_from_gcs():
         index_to_docstore_id = pickle.loads(mapping_buffer)
 
         # Reconstruct the docstore
-        from langchain_community.docstore.in_memory import InMemoryDocstore
-
         docstore = InMemoryDocstore(metadata)
 
         # Reconstruct the FAISS vectorstore
-        from langchain_community.vectorstores import FAISS
-
         vectorstore = FAISS(
-            embedding_function=OpenAIEmbeddings(),
+            embedding_function=OllamaEmbeddings(model="bge-m3:567m"),
             index=faiss_index,
             docstore=docstore,
             index_to_docstore_id=index_to_docstore_id,
