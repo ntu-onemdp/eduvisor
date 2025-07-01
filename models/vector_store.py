@@ -34,7 +34,7 @@ class VectorStore:
         self.embeddings = OllamaEmbeddings(model="bge-m3:567m")
 
         # Retrieve vectorstore from gcs
-        response = self.load_vectorstore_from_gcs()
+        response = self._load_vectorstore_from_gcs()
         logger.debug(response)
         if response["code"] != 200:
             logger.warning(
@@ -67,51 +67,81 @@ class VectorStore:
     # Add document to vectorstore
     def add_document(
         self, pdfs: list[tuple[str, BytesIO]], chunk_size=3000, chunk_overlap=100
-    ) -> None:
-        """
-        Add document(s) to vectorstore
+    ) -> dict[str, any]:
+        """Add one or more PDF documents to the vector store.
+
+        Each PDF is split into pages, and each page is further split into text chunks
+        if it exceeds the specified chunk size. The resulting chunks are stored as
+        individual documents in the vector store, along with metadata about the
+        document title, page number, and chunk index.
 
         Args:
-            files (list[Document]): list of pdfs to add to vectorstore
+            pdfs (list[tuple[str, BytesIO]]):
+                A list of tuples, where each tuple contains the filename (str) and
+                file content as a BytesIO object representing a PDF file.
+            chunk_size (int, optional):
+                The maximum number of characters in each text chunk.
+                If a page's text exceeds this length, it will be split into multiple chunks.
+                Defaults to 3000.
+            chunk_overlap (int, optional):
+                The number of overlapping characters between consecutive chunks.
+                This helps preserve context between chunks. Defaults to 100.
+
+        Returns:
+            dict[str, any]: 201 if successful.
         """
         documents = []
 
-        for filename, content in pdfs:
-            pdf = PdfReader(content)
-            title = filename.replace(".pdf", "")
+        try:
+            for filename, content in pdfs:
+                pdf = PdfReader(content)
+                title = filename.replace(".pdf", "")
 
-            for page_number, page in enumerate(pdf.pages, start=1):
-                page_content = page.extract_text()
+                for page_number, page in enumerate(pdf.pages, start=1):
+                    page_content = page.extract_text()
 
-                if len(page_content) > chunk_size:
-                    # Split page content into chunks if length of page content exceeds the chunk size setting.
-                    text_splitter = RecursiveCharacterTextSplitter(
-                        chunk_size=chunk_size, chunk_overlap=chunk_overlap
-                    )
-                    chunks = text_splitter.split_text(page_content)
+                    if len(page_content) > chunk_size:
+                        # Split page content into chunks if length of page content exceeds the chunk size setting.
+                        text_splitter = RecursiveCharacterTextSplitter(
+                            chunk_size=chunk_size, chunk_overlap=chunk_overlap
+                        )
+                        chunks = text_splitter.split_text(page_content)
 
-                    for i, chunk in enumerate(chunks):
+                        for i, chunk in enumerate(chunks):
+                            doc = Document(
+                                page_content=chunk,
+                                metadata={
+                                    "title": title,
+                                    "page": page_number,
+                                    "chunk": i + 1,
+                                },
+                                id=f"{title}{i}",
+                            )
+                            documents.append(doc)
+                    else:
                         doc = Document(
-                            page_content=chunk,
-                            metadata={
-                                "title": title,
-                                "page": page_number,
-                                "chunk": i + 1,
-                            },
+                            page_content=page_content,
+                            metadata={"title": title, "page": page_number, "chunk": 1},
+                            id=title,
                         )
                         documents.append(doc)
-                else:
-                    doc = Document(
-                        page_content=page_content,
-                        metadata={"title": title, "page": page_number, "chunk": 1},
-                    )
-                    documents.append(doc)
 
-        self.vector_store.add_documents(documents)
+            # Add documents into vectorstore
+            self.vector_store.add_documents(documents)
 
-        logger.info(f"{len(pdfs)} document added to vectorstore")
+            # Sync vectorstore with gcs
+            self._save_vectorstore_to_gcs_direct(self.vector_store)
 
-    def save_vectorstore_to_gcs_direct(self, vectorstore):
+            logger.info(f"{len(pdfs)} document added to vectorstore")
+
+            return response_handler(201, "Vector store updated")
+        except Exception as e:
+            logger.error(e)
+            return response_handler(
+                500, "Error adding document to vectorstore" + str(e)
+            )
+
+    def _save_vectorstore_to_gcs_direct(self, vectorstore):
         """
         Saves a FAISS vector store to Google Cloud Storage.
 
@@ -151,6 +181,7 @@ class VectorStore:
         except Exception as e:
             return response_handler(500, "Failed to Save Vectorstore", str(e))
 
+    #  @DEPRECATED
     def generate_vectorstore_from_memory(
         self, pdfs, chunk_size=3000, chunk_overlap=100
     ):
@@ -201,7 +232,7 @@ class VectorStore:
         except Exception as e:
             return response_handler(500, "Failed to Generate Vectorstore", str(e))
 
-    def load_vectorstore_from_gcs(self):
+    def _load_vectorstore_from_gcs(self):
         try:
             index_blob_name = "vectorstore/index.faiss"
             metadata_blob_name = "vectorstore/metadata.pkl"
