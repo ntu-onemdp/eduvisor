@@ -2,18 +2,17 @@ from services.logger import Logger, configure_logger
 import uvicorn
 from fastapi import FastAPI, UploadFile
 from models.pdf_store import PdfStore
+from models.post import Post
 from dotenv import load_dotenv
-from controllers.materials import MaterialsController
+from services.materials import MaterialsController
 
 # For fastapi simple cache
 from fastapi_simple_cache.backends.inmemory import InMemoryBackend
 from fastapi_simple_cache import FastAPISimpleCache
 
 # LLM related
-from models.vector_store import (
-    VectorStore,
-)
-
+from models.vector_store import VectorStore
+from services.chat_service import ChatService
 
 app = FastAPI()
 
@@ -27,6 +26,7 @@ vector_store = VectorStore()
 material_controller = MaterialsController(
     pdf_store=pdf_store, vector_store=vector_store
 )
+chat_service = ChatService(vector_store=vector_store)
 
 
 @app.get("/")
@@ -61,76 +61,45 @@ def list_all_pdfs():
 
 
 # Get response from thread.
-# @app.get("/response")
-# def get_response(post: Post):
-#     log.info(f"Getting response for post: {post.title}")
+@app.get("/response")
+def get_response(post: Post):
+    log.info(f"Getting response for post: {post.title}")
 
-#     # Initialize LLM
-#     chatService = ChatService()
-#     llm = chatService.initialize_llm()
+    # Initialize persona etc. (refer to chat_controller.py for reference)
+    persona = """
+    You are a virtual teaching assistant in Nanyang Technological University, Singapore. You are helpful, knowledgeable, and friendly.
+    """
 
-#     # Load pdfs into memory
-#     pdf_response = pdf_store.fetch_pdfs_from_gcs_in_memory()
+    task = """
+    You assist students with their queries related to their courses and provide them with relevant information.
+    Your task is to help students with their multidisciplinary project.
+    """
 
-#     if pdf_response["code"] != 200:
-#         log.error("error fetching pdfs")
-#         return pdf_response
+    conditions = """
+    If you do not know the answer, or if you are unsure, you should say "I don't know." instead of making up an answer.
+    You are not a chatbot, you will give responses and help only if you know the answer.
+    You should not expect any response from the user, you will just give the response.
+    """
 
-#     pdfs = pdf_response["data"]
+    output_style = """
+    You will give the response in a concise and clear manner, without any unnecessary information. Do not prompt the user for any further input or questions.
+    """
 
-#     if not pdfs:
-#         log.warning("no pdfs found")
-#         return {"response": "no pdfs found."}
+    query = f"Post title: {post.title}, Post content: {post.content}"
 
-#     vector_store = VectorStore()
-#     vector_store_response = vector_store.generate_vectorstore_from_memory(pdfs)
+    response, token_used, main_topic = chat_service.invoke_response(
+        persona, task, conditions, output_style, query
+    )
 
-#     if vector_store_response["code"] != 200:
-#         log.error("error generating vectorstore from memory")
+    log.info(f"Response generated: {response}")
+    log.info(f"Tokens used: {token_used}")
+    log.info(f"Main topic: {main_topic}")
 
-#     # Initialize persona etc. (refer to chat_controller.py for reference)
-#     persona = """
-#     You are a virtual teaching assistant in Nanyang Technological University, Singapore. You are helpful, knowledgeable, and friendly.
-#     """
-
-#     task = """
-#     You assist students with their queries related to their courses and provide them with relevant information.
-#     Your task is to help students with their multidisciplinary project.
-#     """
-
-#     conditions = """
-#     If you do not know the answer, or if you are unsure, you should say "I don't know." instead of making up an answer.
-#     You are not a chatbot, you will give responses and help only if you know the answer.
-#     You should not expect any response from the user, you will just give the response.
-#     """
-
-#     output_style = """
-#     You will give the response in a concise and clear manner, without any unnecessary information. Do not prompt the user for any further input or questions.
-#     """
-
-#     query = f"Post title: {post.title}, Post content: {post.content}"
-
-#     vector_store_response = load_vectorstore_from_gcs()
-#     if vector_store_response["code"] == 200:
-#         loaded_faiss_vs = vector_store_response["data"]
-#     else:
-#         log.error("Failed to load vectorstore from GCS")
-#         loaded_faiss_vs = None
-#     # loaded_faiss_vs = None
-
-#     response, token_used, main_topic = chatService.invoke_response(
-#         llm, persona, task, conditions, output_style, loaded_faiss_vs, query
-#     )
-
-#     log.info(f"Response generated: {response}")
-#     log.info(f"Tokens used: {token_used}")
-#     log.info(f"Main topic: {main_topic}")
-
-#     return {
-#         "post_title": post.title,
-#         "post_content": post.content,
-#         "response": response,
-#     }
+    return {
+        "post_title": post.title,
+        "post_content": post.content,
+        "response": response,
+    }
 
 
 @app.on_event("startup")
