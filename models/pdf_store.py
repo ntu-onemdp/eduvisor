@@ -10,34 +10,38 @@ logger = Logger()
 # Initialize Google Cloud credentials
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "credentials/service-account-key.json"
 
+BUCKET_NAME = os.getenv("GCS_BUCKET_NAME")
+if not BUCKET_NAME:
+    raise ValueError("GCS_BUCKET_NAME environment variable is not set.")
 
-class PDFModel:
-    BUCKET_NAME = os.getenv("GCS_BUCKET_NAME")
-    if not BUCKET_NAME:
-        raise ValueError("GCS_BUCKET_NAME environment variable is not set.")
 
-    def upload_pdf_to_gcs(self, uploaded_file: UploadFile):
+class PdfStore:
+    def __init__(self):
+        pass
+
+    def upload(self, files: list[UploadFile]):
         """
-        Uploads a PDF file to Google Cloud Storage.
+        Uploads PDF files to Google Cloud Storage. Returns 201 on success
 
         Args:
             uploaded_file: The uploaded file object.
         """
         logger.debug("Starting PDF upload to GCS...")
         try:
-            file_name = uploaded_file.filename
-            blob_name = f"pdfs/{file_name}"
-            logger.debug(f"Received file: {file_name}, Blob name: {blob_name}")
+            for file in files:
+                file_name = file.filename
+                blob_name = f"pdfs/{file_name}"
+                logger.debug(f"Received file: {file_name}, Blob name: {blob_name}")
 
-            client = storage.Client()
-            logger.debug(f"Uploading {file_name} to GCS bucket {self.BUCKET_NAME}")
+                client = storage.Client()
+                logger.debug(f"Uploading {file_name} to GCS bucket {BUCKET_NAME}")
 
-            bucket = client.bucket(self.BUCKET_NAME)
-            logger.debug(f"Bucket {self.BUCKET_NAME} accessed successfully")
-            blob = bucket.blob(blob_name)
-            logger.debug(f"Blob {blob_name} created in bucket {self.BUCKET_NAME}")
+                bucket = client.bucket(BUCKET_NAME)
+                logger.debug(f"Bucket {BUCKET_NAME} accessed successfully")
+                blob = bucket.blob(blob_name)
+                logger.debug(f"Blob {blob_name} created in bucket {BUCKET_NAME}")
 
-            blob.upload_from_file(uploaded_file.file, content_type="application/pdf")
+                blob.upload_from_file(file.file, content_type="application/pdf")
 
             return response_handler(
                 201, f"Uploaded {file_name} successfully.", file_name
@@ -50,6 +54,8 @@ class PDFModel:
         """
         Fetch all PDFs for a course from GCS as in-memory files.
 
+        Currently unused.
+
         Returns:
             A list of tuples (file_name, file_content), where file_content is a BytesIO object.
         """
@@ -58,7 +64,7 @@ class PDFModel:
             files = []
 
             client = storage.Client()
-            bucket = client.bucket(self.BUCKET_NAME)
+            bucket = client.bucket(BUCKET_NAME)
             blobs = bucket.list_blobs(prefix=prefix)
 
             for blob in blobs:
@@ -70,8 +76,7 @@ class PDFModel:
 
             return response_handler(200, "PDFs Fetched Successfully", files)
         except Exception as e:
-            print("fetch")
-            print(str(e))
+            logger.error(f"error fetching pdfs, {str(e)}")
             return response_handler(500, "Failed to Fetch PDFs", str(e))
 
     def list_all(self):
@@ -86,7 +91,7 @@ class PDFModel:
             filenames = []
 
             client = storage.Client()
-            bucket = client.bucket(self.BUCKET_NAME)
+            bucket = client.bucket(BUCKET_NAME)
             blobs = bucket.list_blobs(prefix=prefix)
 
             for blob in blobs:
@@ -115,7 +120,7 @@ class PDFModel:
             blob_name = f"pdfs/{filename}"
 
             client = storage.Client()
-            bucket = client.bucket(self.BUCKET_NAME)
+            bucket = client.bucket(BUCKET_NAME)
             blob = bucket.blob(blob_name)
 
             if not blob.exists():
