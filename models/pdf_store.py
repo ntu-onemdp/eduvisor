@@ -54,6 +54,8 @@ class PdfStore:
         """
         Fetch all PDFs for a course from GCS as in-memory files.
 
+        Currently unused.
+
         Returns:
             A list of tuples (file_name, file_content), where file_content is a BytesIO object.
         """

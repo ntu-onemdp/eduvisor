@@ -39,30 +39,24 @@ def read_root():
 @app.post("/upload")
 def upload_pdf(files: list[UploadFile]):
     response = material_controller.add(files)
-    return response
-
-
-# List all PDFs
-@app.get("/all")
-def list_all_pdfs():
-    response = pdf_store.list_all()
-    log.info(f"List all PDFs response: {response}")
-    return response
-
-
-# Fetch PDFs from Google Cloud Storage
-@app.get("/fetch")
-def fetch_pdfs():
-    response = pdf_store.fetch_pdfs_from_gcs_in_memory()
-    log.info(f"Fetch PDFs response: {response}")
+    log.info(f"Add pdfs response: {response}")
     return response
 
 
 # Delete a specific PDF
 @app.delete("/{filename}")
 def delete_pdf(filename: str):
-    response = pdf_store.delete_pdf_from_gcs(filename)
+    response = material_controller.remove(filename)
     log.info(f"Delete PDF response: {response}")
+    return response
+
+
+# Endpoints below are for development only. May or may not work.
+# List all PDFs
+@app.get("/dev/all")
+def list_all_pdfs():
+    response = pdf_store.list_all()
+    log.info(f"List all PDFs response: {response}")
     return response
 
 

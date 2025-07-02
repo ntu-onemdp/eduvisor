@@ -27,4 +27,8 @@ class MaterialsController:
             logger.error("Error updating vectorstore")
             return response_handler(500, "Error updating vectorstore")
 
+        logger.info(f"{len(files)} file(s) successfully added into Eduvisor")
         return response_handler(201, "Successfully added files into Eduvisor")
+
+    def remove(self, filename: str):
+        return self.pdf_store.delete_pdf_from_gcs(filename)
