@@ -11,8 +11,8 @@ from response import response_handler
 from PyPDF2 import PdfReader
 from services.logger import Logger
 from langchain_community.docstore.in_memory import InMemoryDocstore
-from io import BytesIO
 from langchain_ollama import OllamaEmbeddings
+from fastapi import UploadFile
 
 logger = Logger()
 
@@ -65,8 +65,8 @@ class VectorStore:
         pass
 
     # Add document to vectorstore
-    def add_document(
-        self, pdfs: list[tuple[str, BytesIO]], chunk_size=3000, chunk_overlap=100
+    def add_documents(
+        self, pdfs: list[UploadFile], chunk_size=3000, chunk_overlap=100
     ) -> dict[str, any]:
         """Add one or more PDF documents to the vector store.
 
@@ -93,8 +93,11 @@ class VectorStore:
         documents = []
 
         try:
-            for filename, content in pdfs:
-                pdf = PdfReader(content)
+            for pdf in pdfs:
+                filename = pdf.filename
+                file = pdf.file
+
+                pdf = PdfReader(file)
                 title = filename.replace(".pdf", "")
 
                 for page_number, page in enumerate(pdf.pages, start=1):
@@ -115,14 +118,14 @@ class VectorStore:
                                     "page": page_number,
                                     "chunk": i + 1,
                                 },
-                                id=f"{title}{i}",
+                                # id=f"{title}{i}",
                             )
                             documents.append(doc)
                     else:
                         doc = Document(
                             page_content=page_content,
                             metadata={"title": title, "page": page_number, "chunk": 1},
-                            id=title,
+                            # id=title,
                         )
                         documents.append(doc)
 

@@ -19,28 +19,29 @@ class PdfStore:
     def __init__(self):
         pass
 
-    def upload_pdf_to_gcs(self, uploaded_file: UploadFile):
+    def upload(self, files: list[UploadFile]):
         """
-        Uploads a PDF file to Google Cloud Storage.
+        Uploads PDF files to Google Cloud Storage. Returns 201 on success
 
         Args:
             uploaded_file: The uploaded file object.
         """
         logger.debug("Starting PDF upload to GCS...")
         try:
-            file_name = uploaded_file.filename
-            blob_name = f"pdfs/{file_name}"
-            logger.debug(f"Received file: {file_name}, Blob name: {blob_name}")
+            for file in files:
+                file_name = file.filename
+                blob_name = f"pdfs/{file_name}"
+                logger.debug(f"Received file: {file_name}, Blob name: {blob_name}")
 
-            client = storage.Client()
-            logger.debug(f"Uploading {file_name} to GCS bucket {BUCKET_NAME}")
+                client = storage.Client()
+                logger.debug(f"Uploading {file_name} to GCS bucket {BUCKET_NAME}")
 
-            bucket = client.bucket(BUCKET_NAME)
-            logger.debug(f"Bucket {BUCKET_NAME} accessed successfully")
-            blob = bucket.blob(blob_name)
-            logger.debug(f"Blob {blob_name} created in bucket {BUCKET_NAME}")
+                bucket = client.bucket(BUCKET_NAME)
+                logger.debug(f"Bucket {BUCKET_NAME} accessed successfully")
+                blob = bucket.blob(blob_name)
+                logger.debug(f"Blob {blob_name} created in bucket {BUCKET_NAME}")
 
-            blob.upload_from_file(uploaded_file.file, content_type="application/pdf")
+                blob.upload_from_file(file.file, content_type="application/pdf")
 
             return response_handler(
                 201, f"Uploaded {file_name} successfully.", file_name

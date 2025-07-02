@@ -3,6 +3,7 @@ import uvicorn
 from fastapi import FastAPI, UploadFile
 from models.pdf_store import PdfStore
 from dotenv import load_dotenv
+from controllers.materials import MaterialsController
 
 # For fastapi simple cache
 from fastapi_simple_cache.backends.inmemory import InMemoryBackend
@@ -22,6 +23,11 @@ log = Logger()
 pdf_store = PdfStore()
 vector_store = VectorStore()
 
+# Initialize controllers
+material_controller = MaterialsController(
+    pdf_store=pdf_store, vector_store=vector_store
+)
+
 
 @app.get("/")
 def read_root():
@@ -31,12 +37,8 @@ def read_root():
 
 # Upload PDF to Google Cloud Storage
 @app.post("/upload")
-def upload_pdf(file: UploadFile):
-    response = pdf_store.upload_pdf_to_gcs(file)
-    filename = file.filename
-    content = file.file
-    vector_store.add_document([(filename, content)])
-    log.info(f"PDF upload response: {response}")
+def upload_pdf(files: list[UploadFile]):
+    response = material_controller.add(files)
     return response
 
 
