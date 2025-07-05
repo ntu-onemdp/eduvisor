@@ -1,9 +1,11 @@
-from services.logger import Logger
+from services.logger import Logger, configure_logger
 import uvicorn
-from fastapi import FastAPI, UploadFile
+from fastapi import FastAPI, UploadFile, Request
+from fastapi.responses import JSONResponse
 from models.pdf_store import PdfStore
 from models.post import Post
 from dotenv import load_dotenv
+import os
 from services.materials import MaterialsController
 
 # For fastapi simple cache
@@ -16,8 +18,10 @@ from services.chat_service import ChatService
 
 # Load environment variables
 load_dotenv(".env", verbose=True, override=True)
+_eduvisor_api_key = os.getenv("EDUVISOR_API_KEY")
 
 app = FastAPI()
+configure_logger()
 
 log = Logger()
 
@@ -30,6 +34,22 @@ material_controller = MaterialsController(
     pdf_store=pdf_store, vector_store=vector_store
 )
 chat_service = ChatService(vector_store=vector_store)
+
+
+# Simple middleware to ensure that only requests from OneMDP are accepted.
+# Set the API key in .env
+@app.middleware("http")
+async def auth(request: Request, call_next):
+    api_key = request.headers.get("x-api-key")
+
+    if api_key != _eduvisor_api_key:
+        return JSONResponse(
+            content={"error": "unauthorized. check that api key is correctly set"},
+            status_code=401,
+        )
+
+    response = await call_next(request)
+    return response
 
 
 @app.get("/")

@@ -6,7 +6,6 @@ import structlog
 class Logger:
     def __init__(self):
         self.logger = structlog.stdlib.get_logger()
-        configure_logger()
 
     def debug(self, *args, **kwargs):
         return self.logger.debug(*args, **kwargs)
@@ -81,7 +80,7 @@ def _configure_default_logging_by_custom(shared_processors, logs_render):
     handler.setFormatter(formatter)
     root_uvicorn_logger = logging.getLogger()
     root_uvicorn_logger.addHandler(handler)
-    root_uvicorn_logger.setLevel(logging.INFO)
+    root_uvicorn_logger.setLevel(logging.DEBUG)
 
 
 def _extract_from_record(_, __, event_dict):
