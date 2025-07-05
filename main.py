@@ -1,4 +1,4 @@
-from services.logger import Logger, configure_logger
+from services.logger import Logger
 import uvicorn
 from fastapi import FastAPI, UploadFile
 from models.pdf_store import PdfStore
@@ -13,6 +13,9 @@ from fastapi_simple_cache import FastAPISimpleCache
 # LLM related
 from models.vector_store import VectorStore
 from services.chat_service import ChatService
+
+# Load environment variables
+load_dotenv(".env", verbose=True, override=True)
 
 app = FastAPI()
 
@@ -109,8 +112,4 @@ async def startup():
 
 
 if __name__ == "__main__":
-    # Load environment variables
-    load_dotenv()
-    configure_logger()
-
     uvicorn.run(app)

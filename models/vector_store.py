@@ -11,10 +11,12 @@ from response import response_handler
 from PyPDF2 import PdfReader
 from services.logger import Logger
 from langchain_community.docstore.in_memory import InMemoryDocstore
-from langchain_ollama import OllamaEmbeddings
 from fastapi import UploadFile
+from dotenv import load_dotenv
 
 logger = Logger()
+
+load_dotenv(".env", verbose=True, override=True)
 
 # Initialize Google Cloud credentials
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "credentials/service-account-key.json"
@@ -25,14 +27,32 @@ class VectorStore:
     BUCKET_NAME = os.getenv("GCS_BUCKET_NAME")
     if not BUCKET_NAME:
         raise ValueError("GCS_BUCKET_NAME environment variable is not set.")
+    logger.debug(f"bucket name: {BUCKET_NAME}")
 
-    # Embedding model to use. See https://platform.openai.com/docs/models for list of embedding models available
-    MODEL = "text-embedding-3-small"
+    # Retrieve env and set model accordingly. Defaults to PROD (will incur OpenAI usage)
+    _env = os.getenv("ENV", "PROD")
+    logger.debug(f"environment: {_env}")
+
+    if _env == "DEV":
+        from langchain_ollama import OllamaEmbeddings
+
+        _embedding_dim = 1024  # bge-m3 uses 1024 dim for embeddings
+        _model = "bge-m3:567m"  # retrieve model with ollama pull bge-m3:567m
+        embeddings = OllamaEmbeddings(model=_model)
+    elif _env == "PROD":
+        from langchain_openai import OpenAIEmbeddings
+
+        _embedding_dim = 1536  # OpenAI uses 1536 dim for emmbeddings
+        # Embedding model to use. See https://platform.openai.com/docs/models for list of embedding models available
+        _model = "text-embedding-3-small"
+        embeddings = OpenAIEmbeddings(model=_model)
+    else:
+        # Invalid environment
+        logger.warning(
+            "A donkey has set an invalid environment. Valid environment names: DEV,PROD."
+        )
 
     def __init__(self):
-        # embeddings = OpenAIEmbeddings(model=self.MODEL)
-        self.embeddings = OllamaEmbeddings(model="bge-m3:567m")
-
         # Retrieve vectorstore from gcs
         response = self._load_vectorstore_from_gcs()
         logger.debug(response)
@@ -41,11 +61,8 @@ class VectorStore:
                 "error loading vectorstore from gcs - initializing vectorstore"
             )
 
-            # Step 1: Get embedding dimension (example: 1536 for many OpenAI models)
-            embedding_dim = 1024
-
             # Step 2: Create an empty FAISS index
-            index = faiss.IndexFlatL2(embedding_dim)
+            index = faiss.IndexFlatL2(self._embedding_dim)
 
             # Step 3: Prepare the empty docstore and mapping
             docstore = InMemoryDocstore({})

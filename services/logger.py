@@ -6,6 +6,7 @@ import structlog
 class Logger:
     def __init__(self):
         self.logger = structlog.stdlib.get_logger()
+        configure_logger()
 
     def debug(self, *args, **kwargs):
         return self.logger.debug(*args, **kwargs)
