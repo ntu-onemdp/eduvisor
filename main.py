@@ -84,7 +84,7 @@ def list_all_pdfs():
 
 
 # Get response from thread.
-@app.get("/response")
+@app.post("/response")
 def get_response(post: Post):
     log.info(f"Getting response for post: {post.title}")
 
@@ -118,11 +118,14 @@ def get_response(post: Post):
     log.info(f"Tokens used: {token_used}")
     log.info(f"Main topic: {main_topic}")
 
-    return {
-        "post_title": post.title,
-        "post_content": post.content,
-        "response": response,
-    }
+    return JSONResponse(
+        status_code=200,
+        content={
+            "post_title": post.title,
+            "post_content": post.content,
+            "response": response,
+        },
+    )
 
 
 @app.on_event("startup")
