@@ -96,6 +96,7 @@ class ChatService:
         Response Formatting Guidelines:
         - Use paragraphs to separate key ideas.
         - Be as concise as possible and answer the question to the best of your ability.
+        - Use HTML tags instead of markdown in your response (e.g. <b></b> to bold text instead of **)
         - If the query is within the course scope, include the slide title and page used in brackets at the end of the whole response.
         """
         logger.debug(context_query)

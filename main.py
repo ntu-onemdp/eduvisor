@@ -105,7 +105,7 @@ def get_response(post: Post):
     """
 
     output_style = """
-    You will give the response in a concise and clear manner, without any unnecessary information. Do not prompt the user for any further input or questions. Use HTML format instead of markdown in your response.
+    You will give the response in a concise and clear manner, without any unnecessary information. Do not prompt the user for any further input or questions. Use HTML tags instead of markdown in your response (e.g. <b></b> to bold text instead of **).
     """
 
     query = f"Post title: {post.title}, Post content: {post.content}"

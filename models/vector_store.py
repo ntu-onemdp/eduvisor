@@ -38,7 +38,9 @@ class VectorStore:
 
         _embedding_dim = 1024  # bge-m3 uses 1024 dim for embeddings
         _model = "bge-m3:567m"  # retrieve model with ollama pull bge-m3:567m
-        embeddings = OllamaEmbeddings(model=_model)
+        embeddings = OllamaEmbeddings(
+            model=_model, base_url="http://host.docker.internal:11434"
+        )
     elif _env == "PROD":
         from langchain_openai import OpenAIEmbeddings
 
