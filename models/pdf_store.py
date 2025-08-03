@@ -8,7 +8,13 @@ from services.logger import Logger
 logger = Logger()
 
 # Initialize Google Cloud credentials
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "credentials/service-account-key.json"
+env = os.getenv("ENV")
+if env == "DEV":
+    path = "credentials/service-account-key.json"
+else:
+    path = "mnt/secrets/service-account-key.json"
+
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = path
 
 BUCKET_NAME = os.getenv("GCS_BUCKET_NAME")
 if not BUCKET_NAME:
