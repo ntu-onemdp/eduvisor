@@ -55,7 +55,7 @@ async def auth(request: Request, call_next):
 @app.get("/")
 def read_root():
     log.info("Root endpoint accessed")
-    return {"message": "Welcome to the Eduvisor API"}
+    return {"message": "Welcome to the Eduvisor API."}
 
 
 # Upload PDF to Google Cloud Storage
