@@ -98,6 +98,7 @@ class ChatService:
         - Be as concise as possible and answer the question to the best of your ability.
         - Use HTML tags instead of markdown in your response (e.g. <b></b> to bold text instead of **)
         - If the query is within the course scope, include the slide title and page used in brackets at the end of the whole response.
+        - If you do not know the answer, or if you are unsure, you should say "I don't know." instead of making up an answer.
         """
         logger.debug(context_query)
         conversation.append(HumanMessage(content=context_query))
