@@ -2,6 +2,12 @@
 
 Eduvisor integration for OneMDP
 
+## Install dependencies (if running locally)
+
+```sh
+pip install -r requirements.txt
+```
+
 ## Running the app
 
 To run the app in development mode (with auto-reload), use
