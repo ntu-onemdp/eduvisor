@@ -16,10 +16,10 @@ class MaterialsController:
 
     def add(self, files: list[UploadFile]):
         # Upload PDFs onto Google Cloud Storage for retrieval in the future
-        upload_res = self.pdf_store.upload(files)
-        if upload_res["code"] != 201:
-            logger.error("Error uploading files to Google Cloud Storage.")
-            return response_handler(500, "Error uploading to Google Cloud Storage")
+        # upload_res = self.pdf_store.upload(files)
+        # if upload_res["code"] != 201:
+        #     logger.error("Error uploading files to Google Cloud Storage.")
+        #     return response_handler(500, "Error uploading to Google Cloud Storage")
 
         # Update vectorstore
         vectorstore_res = self.vector_store.add_documents(files)
