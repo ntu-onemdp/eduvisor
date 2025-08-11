@@ -86,7 +86,7 @@ class VectorStore:
     # Add document to vectorstore
     def add_documents(
         self, pdfs: list[UploadFile], chunk_size=3000, chunk_overlap=100
-    ) -> dict[str, any]:
+    ):
         """Add one or more PDF documents to the vector store.
 
         Each PDF is split into pages, and each page is further split into text chunks
@@ -117,7 +117,8 @@ class VectorStore:
                 file = pdf.file
 
                 pdf = PdfReader(file)
-                title = filename.replace(".pdf", "")
+                title = filename.replace(
+                    ".pdf", "") if filename else "untitled.pdf"
 
                 for page_number, page in enumerate(pdf.pages, start=1):
                     page_content = page.extract_text()
@@ -143,7 +144,8 @@ class VectorStore:
                     else:
                         doc = Document(
                             page_content=page_content,
-                            metadata={"title": title, "page": page_number, "chunk": 1},
+                            metadata={"title": title,
+                                      "page": page_number, "chunk": 1},
                             # id=title,
                         )
                         documents.append(doc)
@@ -241,11 +243,13 @@ class VectorStore:
                     else:
                         doc = Document(
                             page_content=page_content,
-                            metadata={"title": title, "page": page_number, "chunk": 1},
+                            metadata={"title": title,
+                                      "page": page_number, "chunk": 1},
                         )
                         courseinfo_docs.append(doc)
 
-            vectorstore = FAISS.from_documents(courseinfo_docs, self.embeddings)
+            vectorstore = FAISS.from_documents(
+                courseinfo_docs, self.embeddings)
 
             return response_handler(
                 200, "Vectorstore Generated Successfully", vectorstore
@@ -265,13 +269,15 @@ class VectorStore:
             bucket = client.bucket(self.BUCKET_NAME)
 
             # Download FAISS index
-            faiss_index_buffer = bucket.blob(index_blob_name).download_as_bytes()
+            faiss_index_buffer = bucket.blob(
+                index_blob_name).download_as_bytes()
             faiss_index = faiss.deserialize_index(
                 np.frombuffer(faiss_index_buffer, dtype=np.uint8)
             )
 
             # Download metadata
-            metadata_buffer = bucket.blob(metadata_blob_name).download_as_bytes()
+            metadata_buffer = bucket.blob(
+                metadata_blob_name).download_as_bytes()
             metadata = pickle.loads(metadata_buffer)
 
             # Download index_to_docstore_id

@@ -24,7 +24,8 @@ class ChatService:
         """Function to initialize LLM"""
         llm = ChatOpenAI(model=model, max_tokens=800, temperature=temperature)
 
-        logger.info(f"LLM initialized with model: {model}, temperature: {temperature}")
+        logger.info(
+            f"LLM initialized with model: {model}, temperature: {temperature}")
         return llm
 
     def query_vectorstore(self, query, k=5):
@@ -80,11 +81,13 @@ class ChatService:
         # Retrieve context from vectorstore
         raw_contexts = self.query_vectorstore(query, k=5)
         if not raw_contexts:
-            return "No relevant context found.", 0, None
+            logger.warning("No relevant context found")
+            return "I don't know.", 0, None
         trimmed_contexts = self.format_contexts(raw_contexts)
 
         # determine the main topic
-        maintopic = raw_contexts[0].get("title", None) if raw_contexts else None
+        maintopic = raw_contexts[0].get(
+            "title", None) if raw_contexts else None
 
         # build the query with the trimmed context
         context_query = f"""
