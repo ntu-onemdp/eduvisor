@@ -19,7 +19,13 @@ logger = Logger()
 load_dotenv(".env", verbose=True, override=True)
 
 # Initialize Google Cloud credentials
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "credentials/service-account-key.json"
+env = os.getenv("ENV")
+if env == "DEV":
+    path = "credentials/service-account-key.json"
+else:
+    path = "mnt/secrets/service-account-key"
+
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = path
 
 
 class VectorStore:
@@ -86,7 +92,7 @@ class VectorStore:
     # Add document to vectorstore
     def add_documents(
         self, pdfs: list[UploadFile], chunk_size=3000, chunk_overlap=100
-    ):
+    ) -> dict[str, any]:
         """Add one or more PDF documents to the vector store.
 
         Each PDF is split into pages, and each page is further split into text chunks
@@ -117,8 +123,7 @@ class VectorStore:
                 file = pdf.file
 
                 pdf = PdfReader(file)
-                title = filename.replace(
-                    ".pdf", "") if filename else "untitled.pdf"
+                title = filename.replace(".pdf", "")
 
                 for page_number, page in enumerate(pdf.pages, start=1):
                     page_content = page.extract_text()
