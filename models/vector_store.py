@@ -23,7 +23,7 @@ env = os.getenv("ENV")
 if env == "DEV":
     path = "credentials/service-account-key.json"
 else:
-    path = "secrets/service-account-key"
+    path = "/mnt/secrets/service-account-key"
 
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = path
 
