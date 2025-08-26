@@ -2,7 +2,6 @@ from services.logger import Logger, configure_logger
 import uvicorn
 from fastapi import FastAPI, UploadFile, Request
 from fastapi.responses import JSONResponse
-from models.pdf_store import PdfStore
 from models.post import Post
 from dotenv import load_dotenv
 import os
@@ -26,12 +25,11 @@ configure_logger()
 log = Logger()
 
 # Load stores
-pdf_store = PdfStore()
 vector_store = VectorStore()
 
 # Initialize controllers
 material_controller = MaterialsController(
-    pdf_store=pdf_store, vector_store=vector_store
+    vector_store=vector_store
 )
 chat_service = ChatService(vector_store=vector_store)
 
@@ -66,27 +64,10 @@ def upload_pdf(files: list[UploadFile]):
     return response
 
 
-# Delete a specific PDF
-@app.delete("/{filename}")
-def delete_pdf(filename: str):
-    response = material_controller.remove(filename)
-    log.info(f"Delete PDF response: {response}")
-    return response
-
-
-# Endpoints below are for development only. May or may not work.
-# List all PDFs
-@app.get("/dev/all")
-def list_all_pdfs():
-    response = pdf_store.list_all()
-    log.info(f"List all PDFs response: {response}")
-    return response
-
-
 # Get response from thread.
 @app.post("/response")
-def get_response(post: Post):
-    log.info(f"Getting response for post: {post.title}")
+def get_response(posts: list[Post]):
+    log.info(f"Getting response for posts: {posts[0].title}")
 
     # Initialize persona etc. (refer to chat_controller.py for reference)
     persona = """
@@ -108,7 +89,9 @@ def get_response(post: Post):
     You will give the response in a concise and clear manner, without any unnecessary information. Do not prompt the user for any further input or questions. Use HTML tags instead of markdown in your response (e.g. <b></b> to bold text instead of **).
     """
 
-    query = f"Post title: {post.title}, Post content: {post.content}"
+    query = ""
+    for index, post in enumerate(posts):
+        query += f"Post number: {index + 1}, Post title: {post.title}, Post content: {post.content}, Post author: {post.author} "
 
     response, token_used, main_topic = chat_service.invoke_response(
         persona, task, conditions, output_style, query
@@ -121,8 +104,6 @@ def get_response(post: Post):
     return JSONResponse(
         status_code=200,
         content={
-            "post_title": post.title,
-            "post_content": post.content,
             "response": response,
         },
     )

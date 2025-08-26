@@ -20,8 +20,8 @@ load_dotenv(".env", verbose=True, override=True)
 
 # Initialize Google Cloud credentials
 env = os.getenv("ENV")
-if env == "DEV":
-    path = "credentials/service-account-key.json"
+if env == "DEV" or env == "DEV_2":
+    path = "./secrets/service-account-key"
 else:
     path = "/secrets/service-account-key"
 
@@ -47,7 +47,7 @@ class VectorStore:
         embeddings = OllamaEmbeddings(
             model=_model, base_url="http://host.docker.internal:11434"
         )
-    elif _env == "PROD":
+    elif _env == "PROD" or _env == "DEV_2":
         from langchain_openai import OpenAIEmbeddings
 
         _embedding_dim = 1536  # OpenAI uses 1536 dim for emmbeddings

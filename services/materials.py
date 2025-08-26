@@ -1,4 +1,3 @@
-from models.pdf_store import PdfStore
 from models.vector_store import VectorStore
 from services.logger import Logger
 from fastapi import UploadFile
@@ -8,8 +7,7 @@ logger = Logger()
 
 
 class MaterialsController:
-    def __init__(self, pdf_store: PdfStore, vector_store: VectorStore):
-        self.pdf_store = pdf_store
+    def __init__(self, vector_store: VectorStore):
         self.vector_store = vector_store
         logger.debug("Materials controller initialized")
         pass
@@ -29,6 +27,3 @@ class MaterialsController:
 
         logger.info(f"{len(files)} file(s) successfully added into Eduvisor")
         return response_handler(201, "Successfully added files into Eduvisor")
-
-    def remove(self, filename: str):
-        return self.pdf_store.delete_pdf_from_gcs(filename)
