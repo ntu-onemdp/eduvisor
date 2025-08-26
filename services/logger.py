@@ -33,14 +33,9 @@ def configure_logger(enable_json_logs: bool = False):
         structlog.contextvars.merge_contextvars,
         structlog.processors.CallsiteParameterAdder(
             {
-                structlog.processors.CallsiteParameter.PATHNAME,
                 structlog.processors.CallsiteParameter.FILENAME,
                 structlog.processors.CallsiteParameter.MODULE,
                 structlog.processors.CallsiteParameter.FUNC_NAME,
-                structlog.processors.CallsiteParameter.THREAD,
-                structlog.processors.CallsiteParameter.THREAD_NAME,
-                structlog.processors.CallsiteParameter.PROCESS,
-                structlog.processors.CallsiteParameter.PROCESS_NAME,
             }
         ),
         structlog.stdlib.ExtraAdder(),
