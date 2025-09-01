@@ -92,7 +92,7 @@ class VectorStore:
     # Add document to vectorstore
     def add_documents(
         self, pdfs: list[UploadFile], chunk_size=3000, chunk_overlap=100
-    ) -> dict[str, any]:
+    ) -> dict[str, str]:
         """Add one or more PDF documents to the vector store.
 
         Each PDF is split into pages, and each page is further split into text chunks
@@ -101,7 +101,7 @@ class VectorStore:
         document title, page number, and chunk index.
 
         Args:
-            pdfs (list[tuple[str, BytesIO]]):
+            pdfs (list[UploadFile]):
                 A list of tuples, where each tuple contains the filename (str) and
                 file content as a BytesIO object representing a PDF file.
             chunk_size (int, optional):
@@ -123,7 +123,10 @@ class VectorStore:
                 file = pdf.file
 
                 pdf = PdfReader(file)
-                title = filename.replace(".pdf", "")
+                if filename:
+                    title = filename.replace(".pdf", "")
+                else:
+                    title = "Untitled"
 
                 for page_number, page in enumerate(pdf.pages, start=1):
                     page_content = page.extract_text()
